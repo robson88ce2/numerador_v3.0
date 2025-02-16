@@ -9,14 +9,16 @@ import pandas as pd
 from contextlib import closing
 
 # Função para criar uma conexão com o banco de dados
+# Função para criar uma conexão com o banco de dados
 def get_db_connection():
     return psycopg2.connect(
         dbname=os.getenv("PG_DB", "numerador_db_v3"),
         user=os.getenv("PG_USER", "postgres"),
         password=os.getenv("PG_PASS", "FnOJQBeHAzbIGuiyifswkOfTeZJRkckU"),
-        host=os.getenv("PG_HOST", "postgresql://postgres:FnOJQBeHAzbIGuiyifswkOfTeZJRkckU@postgres-3sr7.railway.internal:5432/railway"),
+        host=os.getenv("PG_HOST", "postgres-3sr7.railway.internal"),  # Apenas o host
         port=os.getenv("PG_PORT", "5432"),
         connect_timeout=10  # Adiciona um tempo de espera de 10 segundos
+    )
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
     try:
