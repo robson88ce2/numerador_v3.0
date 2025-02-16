@@ -5,7 +5,6 @@ import unicodedata
 import re
 import streamlit as st
 import psycopg2
-import os
 import pandas as pd
 from contextlib import closing
 
@@ -21,6 +20,10 @@ def get_db_connection():
         connect_timeout=10  
     )
 
+# Função para normalizar o nome da sequência
+def normalizar_nome(nome):
+    return nome.replace(" ", "_").replace("-", "_").lower()
+
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
     try:
@@ -34,7 +37,6 @@ def execute_query(query, params=None, fetch=False):
         st.error(f"Erro no banco de dados: {e}")
         return None
     
-    
 # Criar tabelas e sequências se não existirem
 def create_tables():
     tipos = [
@@ -43,6 +45,7 @@ def create_tables():
         "CARTA_PRECATORIA_EXPEDIDA", "CARTA_PRECATORIA_RECEBIDA", "INTIMACAO"
     ]
     
+    # Criar a tabela documentos
     execute_query("""
         CREATE TABLE IF NOT EXISTS documentos (
             id SERIAL PRIMARY KEY,
@@ -53,11 +56,15 @@ def create_tables():
         )
     """)
     
+    # Criar as sequências para cada tipo de documento
     for tipo in tipos:
         sequence_name = normalizar_nome(tipo)
         execute_query(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name} START WITH 1 INCREMENT BY 1;")
+        execute_query(f"ALTER SEQUENCE {sequence_name} OWNED BY documentos.id;")
 
-# Função para garantir que a sequência existe e está separada por tipo
+# Chamar a função para criar as tabelas e sequências
+create_tables()
+
 
 
 # Obter próximo número com lógica independente
