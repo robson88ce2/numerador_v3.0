@@ -11,10 +11,10 @@ from contextlib import closing
 # Função para criar uma conexão com o banco de dados
 def get_db_connection():
     return psycopg2.connect(
-        dbname=os.getenv("PG_DB", "numerador_db_v2"),
+        dbname=os.getenv("PG_DB", "numerador_db_v3"),
         user=os.getenv("PG_USER", "postgres"),
-        password=os.getenv("PG_PASS", "kvDwfuepWWYapBconiTHOmcxjesQIVIb"),
-        host=os.getenv("PG_HOST", "postgres.railway.app"),
+        password=os.getenv("PG_PASS", "FnOJQBeHAzbIGuiyifswkOfTeZJRkckU"),
+        host=os.getenv("PG_HOST", "postgres-3sr7.railway.internal"),
         port=os.getenv("PG_PORT", "5432"),
         connect_timeout=10  # Adiciona um tempo de espera de 10 segundos
     )
