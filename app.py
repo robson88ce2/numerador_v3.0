@@ -14,11 +14,13 @@ def get_db_connection():
     return psycopg2.connect(
         dbname=os.getenv("PG_DB", "db_z0bb"),
         user=os.getenv("PG_USER", "db_z0bb_user"),
-        password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBoIw2gtjS"),
+        password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBolw2gtjS"),
         host=os.getenv("PG_HOST", "dpg-cuou4jl2ng1s73ecudj0-a.oregon-postgres.render.com"),
         port=os.getenv("PG_PORT", "5432"),
+        sslmode="require",  
         connect_timeout=10  
     )
+
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
     try:
