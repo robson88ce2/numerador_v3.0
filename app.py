@@ -9,7 +9,6 @@ import pandas as pd
 from contextlib import closing
 from psycopg2 import pool
 
-
 db_pool = None
 
 def init_db_pool():
@@ -26,6 +25,9 @@ def init_db_pool():
             connect_timeout=10
         )
 
+# Chama a função para inicializar o pool de conexões logo após definir a variável db_pool
+init_db_pool()
+
 # Obtém a conexão do pool
 def get_db_connection():
     return db_pool.getconn()
@@ -33,6 +35,8 @@ def get_db_connection():
 # Libera a conexão de volta para o pool
 def release_db_connection(conn):
     db_pool.putconn(conn)
+
+
 
 # Função para normalizar o nome da sequência
 def normalizar_nome(nome):
