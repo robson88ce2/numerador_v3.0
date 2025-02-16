@@ -12,12 +12,12 @@ from contextlib import closing
 # Função para criar uma conexão com o banco de dados
 def get_db_connection():
     return psycopg2.connect(
-        dbname=os.getenv("PG_DB", "numerador_db_v3"),
-        user=os.getenv("PG_USER", "postgres"),
-        password=os.getenv("PG_PASS", "FnOJQBeHAzbIGuiyifswkOfTeZJRkckU"),
-        host=os.getenv("PG_HOST", "postgres-3sr7.railway.internal"),  # Apenas o host
+        dbname=os.getenv("PG_DB", "db_z0bb"),
+        user=os.getenv("PG_USER", "db_z0bb_user"),
+        password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBoIw2gtjS"),
+        host=os.getenv("PG_HOST", "dpg-cuou4j12ng1s73ecudj0-a"),
         port=os.getenv("PG_PORT", "5432"),
-        connect_timeout=10  # Adiciona um tempo de espera de 10 segundos
+        connect_timeout=10  
     )
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
@@ -67,9 +67,6 @@ def normalizar_nome(tipo):
     tipo = re.sub(r'[^a-z0-9\s]', '', tipo)
     tipo = re.sub(r'\s+', '_', tipo)
     return tipo + "_seq"
-
-def ensure_sequence(sequence_name):
-    execute_query(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name} START 1;")
 
 def get_next_number(tipo):
     sequence_name = normalizar_nome(tipo)
