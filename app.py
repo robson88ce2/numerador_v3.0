@@ -58,12 +58,14 @@ def formatar_data(data_str):
         return data_obj.strftime("%Y-%m-%d")  # Formata para YYYY-MM-DD
     except ValueError:
         return None  # Retorna None caso não consiga converter a data
+
 # Função para criar índices no banco de dados
 def create_indexes():
     execute_query("""
         CREATE INDEX IF NOT EXISTS idx_documentos_tipo ON documentos(tipo);
         CREATE INDEX IF NOT EXISTS idx_documentos_data_emissao ON documentos(data_emissao);
     """)
+
 # Criar tabelas e sequências se não existirem
 def create_tables():
     tipos = [
@@ -186,7 +188,6 @@ def login():
             st.sidebar.error("Usuário ou senha incorretos!")
 
 def main():
-    
     if not st.session_state["authenticated"]:
         login()
     else:
@@ -220,27 +221,28 @@ def main():
                         st.error(f"Erro ao gerar número: {e}")
                 else:
                     st.error("Por favor, informe o destino.")
-       if menu == "Histórico":
-    st.title("📜 Histórico de Documentos")
-    with get_db_connection() as conn:
-        df = pd.read_sql_query("""
-            SELECT tipo, numero, data_emissao, destino 
-            FROM documentos
-            ORDER BY id DESC
-        """, conn)
-    if not df.empty:
-        filtro_tipo = st.selectbox("Filtrar por Tipo", ["Todos"] + sorted(df['tipo'].unique()), key="filter_type")
-        if filtro_tipo != "Todos":
-            df = df[df['tipo'] == filtro_tipo]
 
-        filtro_data = st.date_input("Filtrar por Data", key="filter_date")
-        if filtro_data:
-            df = df[df['data_emissao'] == filtro_data.strftime('%Y-%m-%d')]
+        if menu == "Histórico":
+            st.title("📜 Histórico de Documentos")
+            with get_db_connection() as conn:
+                df = pd.read_sql_query("""
+                    SELECT tipo, numero, data_emissao, destino 
+                    FROM documentos
+                    ORDER BY id DESC
+                """, conn)
 
-        st.dataframe(df, height=300)
-    else:
-        st.warning("Nenhum documento encontrado.")
+            if not df.empty:
+                filtro_tipo = st.selectbox("Filtrar por Tipo", ["Todos"] + sorted(df['tipo'].unique()), key="filter_type")
+                if filtro_tipo != "Todos":
+                    df = df[df['tipo'] == filtro_tipo]
 
+                filtro_data = st.date_input("Filtrar por Data", key="filter_date")
+                if filtro_data:
+                    df = df[df['data_emissao'] == filtro_data.strftime('%Y-%m-%d')]
+
+                st.dataframe(df, height=300)
+            else:
+                st.warning("Nenhum documento encontrado.")
 
 if __name__ == "__main__":
     main()
