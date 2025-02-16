@@ -16,7 +16,6 @@ def get_db_connection():
         password=os.getenv("PG_PASS", "kvDwfuepWWYapBconiTHOmcxjesQIVIb"),
         host=os.getenv("PG_HOST", "postgres.railway.internal"),
         port=os.getenv("PG_PORT", "5432")
-       
     )
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
