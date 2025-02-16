@@ -36,7 +36,15 @@ def execute_query(query, params=None, fetch=False):
     except psycopg2.Error as e:
         st.error(f"Erro no banco de dados: {e}")
         return None
-    
+
+# Função para formatar a data para o padrão que o PostgreSQL aceita (YYYY-MM-DD)
+def formatar_data(data_str):
+    try:
+        data_obj = datetime.strptime(data_str, "%d/%m/%Y")
+        return data_obj.strftime("%Y-%m-%d")  # Formata para YYYY-MM-DD
+    except ValueError:
+        return None  # Retorna None caso não consiga converter a data
+
 # Criar tabelas e sequências se não existirem
 def create_tables():
     tipos = [
@@ -64,17 +72,6 @@ def create_tables():
 
 # Chamar a função para criar as tabelas e sequências
 create_tables()
-
-
-
-# Obter próximo número com lógica independente
-def normalizar_nome(tipo):
-    """Remove acentos, converte para minúsculas e substitui espaços por underscore."""
-    tipo = tipo.lower().strip()
-    tipo = unicodedata.normalize("NFKD", tipo).encode("ASCII", "ignore").decode("utf-8")
-    tipo = re.sub(r'[^a-z0-9\s]', '', tipo)
-    tipo = re.sub(r'\s+', '_', tipo)
-    return tipo + "_seq"
 
 def ensure_sequence(sequence_name):
     """Garante que a sequência existe e está correta."""
@@ -109,23 +106,6 @@ def get_next_number(tipo):
     st.error("🚨 Nenhum número retornado (primeira tentativa falhou)!")
     return None
 
-
-def get_next_number(tipo):
-    """Gera o próximo número sequencial para o tipo informado."""
-    sequence_name = normalizar_nome(tipo)
-    ensure_sequence(sequence_name)
-
-    with get_db_connection() as conn:
-        conn.set_session(autocommit=True)  # 🚀 Garante que `nextval()` seja imediato
-        with conn.cursor() as cursor:
-            cursor.execute(f"SELECT nextval('{sequence_name}')")
-            count = cursor.fetchone()[0]
-            numero = f"{count:03d}/{datetime.now().year}"
-            
-            return numero
-    return None
-
-
 def save_document(tipo, destino, data_emissao):
     """Salva o documento gerando novo número se houver conflito."""
     sequence_name = normalizar_nome(tipo)
@@ -138,6 +118,12 @@ def save_document(tipo, destino, data_emissao):
                 st.error("❌ get_next_number() retornou None!")
                 return None
 
+            # Formatar a data antes de inseri-la no banco
+            data_emissao_formatada = formatar_data(data_emissao)
+            if not data_emissao_formatada:
+                st.error("🚨 Formato de data inválido. Use DD/MM/YYYY.")
+                return None
+
             query = """
             INSERT INTO documentos (tipo, numero, destino, data_emissao)
             VALUES (%s, %s, %s, %s)
@@ -146,7 +132,7 @@ def save_document(tipo, destino, data_emissao):
             RETURNING numero;
             """
 
-            resultado = execute_query(query, (tipo, numero, destino, data_emissao), fetch=True)
+            resultado = execute_query(query, (tipo, numero, destino, data_emissao_formatada), fetch=True)
             if resultado:
                 st.success(f"✅ Documento salvo: {resultado[0][0]}")
                 return resultado[0][0]
