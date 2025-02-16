@@ -15,7 +15,8 @@ def get_db_connection():
         user=os.getenv("PG_USER", "postgres"),
         password=os.getenv("PG_PASS", "kvDwfuepWWYapBconiTHOmcxjesQIVIb"),
         host=os.getenv("PG_HOST", "turntable.proxy.rlwy.net:34145"),
-        port=os.getenv("PG_PORT", "5432")
+        port=os.getenv("PG_PORT", "5432"),
+        conect=${{ Postgres.DATABASE_URL }}
     )
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
