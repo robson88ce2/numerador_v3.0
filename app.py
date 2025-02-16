@@ -9,40 +9,56 @@ import pandas as pd
 from contextlib import closing
 from psycopg2 import pool
 
+
 db_pool = None
 
 def init_db_pool():
     """Inicializa o pool de conexões, se ainda não foi inicializado"""
     global db_pool
     if db_pool is None:
-        db_pool = psycopg2.pool.SimpleConnectionPool(
-            1, 20,  # Mínimo de 1 conexão, máximo de 20
-            dbname=os.getenv("PG_DB", "db_z0bb"),
-            user=os.getenv("PG_USER", "db_z0bb_user"),
-            password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBolw2gtjS"),
-            host=os.getenv("PG_HOST", "dpg-cuou4jl2ng1s73ecudj0-a.oregon-postgres.render.com"),
-            port=os.getenv("PG_PORT", "5432"),
-            sslmode="require",
-            connect_timeout=10
-        )
+        try:
+            db_pool = psycopg2.pool.SimpleConnectionPool(
+                1, 5,  # Mínimo 1, Máximo 5 (ajuste conforme necessário)
+                dbname=os.getenv("PG_DB", "db_z0bb"),
+                user=os.getenv("PG_USER", "db_z0bb_user"),
+                password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBolw2gtjS"),
+                host=os.getenv("PG_HOST", "dpg-cuou4jl2ng1s73ecudj0-a.oregon-postgres.render.com"),
+                port=os.getenv("PG_PORT", "5432"),
+                sslmode="require",
+                connect_timeout=10
+            )
+        except Exception as e:
+            st.error(f"Erro ao inicializar o pool de conexões: {e}")
 
 init_db_pool()  # Garante que o pool é inicializado no início
 
 def get_db_connection():
     """Obtém uma conexão do pool"""
+    global db_pool
+    if db_pool is None:
+        st.error("O pool de conexões não foi inicializado corretamente.")
+        return None
+
     try:
-        return db_pool.getconn()
+        conn = db_pool.getconn()
+        if conn is None:
+            st.error("Erro: Pool de conexões esgotado. Tente novamente mais tarde.")
+        return conn
     except Exception as e:
         st.error(f"Erro ao obter conexão: {e}")
         return None
 
 def release_db_connection(conn):
     """Libera uma conexão de volta para o pool"""
-    if conn:
-        db_pool.putconn(conn)
+    global db_pool
+    if conn and db_pool:
+        try:
+            db_pool.putconn(conn)
+        except Exception as e:
+            st.error(f"Erro ao liberar conexão: {e}")
 
 def execute_query(query, params=None, fetch=False):
-    """Executa uma query no banco, garantindo que a conexão seja liberada"""
+    """Executa uma query no banco de dados"""
     conn = get_db_connection()
     if conn is None:
         return None
@@ -58,7 +74,7 @@ def execute_query(query, params=None, fetch=False):
         st.error(f"Erro no banco de dados: {e}")
         return None
     finally:
-        release_db_connection(conn)  # Libera a conexão após uso
+        release_db_connection(conn)  # Libera a conexão após o uso
 
 
 # Função para normalizar o nome da sequência
