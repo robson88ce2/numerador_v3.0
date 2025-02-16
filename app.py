@@ -15,7 +15,7 @@ def get_db_connection():
         dbname=os.getenv("PG_DB", "db_z0bb"),
         user=os.getenv("PG_USER", "db_z0bb_user"),
         password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBoIw2gtjS"),
-        host=os.getenv("PG_HOST", "dpg-cuou4j12ng1s73ecudj0-a"),
+        host=os.getenv("PG_HOST", "dpg-cuou4jl2ng1s73ecudj0-a.oregon-postgres.render.com"),
         port=os.getenv("PG_PORT", "5432"),
         connect_timeout=10  
     )
