@@ -12,10 +12,11 @@ from psycopg2 import pool
 db_pool = None
 
 def init_db_pool():
+    """Inicializa o pool de conexões, se ainda não foi inicializado"""
     global db_pool
     if db_pool is None:
         db_pool = psycopg2.pool.SimpleConnectionPool(
-            1, 10,  # Mínimo de 1 conexão, máximo de 10
+            1, 20,  # Mínimo de 1 conexão, máximo de 20
             dbname=os.getenv("PG_DB", "db_z0bb"),
             user=os.getenv("PG_USER", "db_z0bb_user"),
             password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBolw2gtjS"),
@@ -25,17 +26,39 @@ def init_db_pool():
             connect_timeout=10
         )
 
-# Chama a função para inicializar o pool de conexões logo após definir a variável db_pool
-init_db_pool()
+init_db_pool()  # Garante que o pool é inicializado no início
 
-# Obtém a conexão do pool
 def get_db_connection():
-    return db_pool.getconn()
+    """Obtém uma conexão do pool"""
+    try:
+        return db_pool.getconn()
+    except Exception as e:
+        st.error(f"Erro ao obter conexão: {e}")
+        return None
 
-# Libera a conexão de volta para o pool
 def release_db_connection(conn):
-    db_pool.putconn(conn)
+    """Libera uma conexão de volta para o pool"""
+    if conn:
+        db_pool.putconn(conn)
 
+def execute_query(query, params=None, fetch=False):
+    """Executa uma query no banco, garantindo que a conexão seja liberada"""
+    conn = get_db_connection()
+    if conn is None:
+        return None
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params or ())
+            if fetch:
+                result = cursor.fetchall()
+                return result
+            conn.commit()
+    except psycopg2.Error as e:
+        st.error(f"Erro no banco de dados: {e}")
+        return None
+    finally:
+        release_db_connection(conn)  # Libera a conexão após uso
 
 
 # Função para normalizar o nome da sequência
