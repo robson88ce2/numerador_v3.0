@@ -10,14 +10,23 @@ from contextlib import closing
 
 # Função para criar uma conexão com o banco de dados
 def get_db_connection():
-    return psycopg2.connect(
-        dbname=os.getenv("PG_DB", "numerador_db_v3"),
-        user=os.getenv("PG_USER", "postgres"),
-        password=os.getenv("PG_PASS", "FnOJQBeHAzbIGuiyifswkOfTeZJRkckU"),
-        host=os.getenv("PG_HOST", "postgresql://postgres:FnOJQBeHAzbIGuiyifswkOfTeZJRkckU@postgres-3sr7.railway.internal:5432/railway"),
-        port=os.getenv("PG_PORT", "5432"),
-        connect_timeout=10  # Adiciona um tempo de espera de 10 segundos
-    )
+    # Obter a variável de ambiente DATABASE_URL
+    database_url = os.getenv("DATABASE_URL")
+    
+    if database_url:
+        # Parse da URL de conexão
+        result = urlparse(database_url)
+        
+        return psycopg2.connect(
+            dbname=result.path[1:],  # Extrair o nome do banco de dados
+            user=result.username,     # Extrair o usuário
+            password=result.password, # Extrair a senha
+            host=result.hostname,     # Extrair o host
+            port=result.port,         # Extrair a porta
+            connect_timeout=10        # Tempo de espera de 10 segundos
+        )
+    else:
+        raise ValueError("A variável de ambiente DATABASE_URL não foi definida.")
 # Função para executar queries no banco de dados
 def execute_query(query, params=None, fetch=False):
     try:
