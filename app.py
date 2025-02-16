@@ -7,18 +7,32 @@ import streamlit as st
 import psycopg2
 import pandas as pd
 from contextlib import closing
+from psycopg2 import pool
 
-# Função para criar uma conexão com o banco de dados
+
+db_pool = None
+
+def init_db_pool():
+    global db_pool
+    if db_pool is None:
+        db_pool = psycopg2.pool.SimpleConnectionPool(
+            1, 10,  # Mínimo de 1 conexão, máximo de 10
+            dbname=os.getenv("PG_DB", "db_z0bb"),
+            user=os.getenv("PG_USER", "db_z0bb_user"),
+            password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBolw2gtjS"),
+            host=os.getenv("PG_HOST", "dpg-cuou4jl2ng1s73ecudj0-a.oregon-postgres.render.com"),
+            port=os.getenv("PG_PORT", "5432"),
+            sslmode="require",
+            connect_timeout=10
+        )
+
+# Obtém a conexão do pool
 def get_db_connection():
-    return psycopg2.connect(
-        dbname=os.getenv("PG_DB", "db_z0bb"),
-        user=os.getenv("PG_USER", "db_z0bb_user"),
-        password=os.getenv("PG_PASS", "Tur9VycRGOxEMtHCtrjfXZFBolw2gtjS"),
-        host=os.getenv("PG_HOST", "dpg-cuou4jl2ng1s73ecudj0-a.oregon-postgres.render.com"),
-        port=os.getenv("PG_PORT", "5432"),
-        sslmode="require",  
-        connect_timeout=10  
-    )
+    return db_pool.getconn()
+
+# Libera a conexão de volta para o pool
+def release_db_connection(conn):
+    db_pool.putconn(conn)
 
 # Função para normalizar o nome da sequência
 def normalizar_nome(nome):
@@ -44,7 +58,12 @@ def formatar_data(data_str):
         return data_obj.strftime("%Y-%m-%d")  # Formata para YYYY-MM-DD
     except ValueError:
         return None  # Retorna None caso não consiga converter a data
-
+# Função para criar índices no banco de dados
+def create_indexes():
+    execute_query("""
+        CREATE INDEX IF NOT EXISTS idx_documentos_tipo ON documentos(tipo);
+        CREATE INDEX IF NOT EXISTS idx_documentos_data_emissao ON documentos(data_emissao);
+    """)
 # Criar tabelas e sequências se não existirem
 def create_tables():
     tipos = [
@@ -142,8 +161,6 @@ def save_document(tipo, destino, data_emissao):
             st.error("🚨 Erro de integridade. Tentando novamente...")
             continue
 
-        time.sleep(0.2)
-
     st.error("❌ Falha após 5 tentativas.")
     return None
 
@@ -203,20 +220,27 @@ def main():
                         st.error(f"Erro ao gerar número: {e}")
                 else:
                     st.error("Por favor, informe o destino.")
-        elif menu == "Histórico":
-            st.title("📜 Histórico de Documentos")
-            with get_db_connection() as conn:
-                df = pd.read_sql_query("SELECT tipo, numero, data_emissao, destino FROM documentos ORDER BY id DESC", conn)
-            if not df.empty:
-                filtro_tipo = st.selectbox("Filtrar por Tipo", ["Todos"] + sorted(df['tipo'].unique()), key="filter_type")
-                if filtro_tipo != "Todos":
-                    df = df[df['tipo'] == filtro_tipo]
-                st.dataframe(df, height=300)
-            else:
-                st.warning("Nenhum documento encontrado.")
-        elif menu == "Sair":
-            st.session_state["authenticated"] = False
-            st.rerun()
+       if menu == "Histórico":
+    st.title("📜 Histórico de Documentos")
+    with get_db_connection() as conn:
+        df = pd.read_sql_query("""
+            SELECT tipo, numero, data_emissao, destino 
+            FROM documentos
+            ORDER BY id DESC
+        """, conn)
+    if not df.empty:
+        filtro_tipo = st.selectbox("Filtrar por Tipo", ["Todos"] + sorted(df['tipo'].unique()), key="filter_type")
+        if filtro_tipo != "Todos":
+            df = df[df['tipo'] == filtro_tipo]
+
+        filtro_data = st.date_input("Filtrar por Data", key="filter_date")
+        if filtro_data:
+            df = df[df['data_emissao'] == filtro_data.strftime('%Y-%m-%d')]
+
+        st.dataframe(df, height=300)
+    else:
+        st.warning("Nenhum documento encontrado.")
+
 
 if __name__ == "__main__":
     main()
