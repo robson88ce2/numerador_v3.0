@@ -5,10 +5,10 @@ import unicodedata
 import re
 import streamlit as st
 import psycopg2
+import os
 import pandas as pd
 from contextlib import closing
 
-# Função para criar uma conexão com o banco de dados
 # Função para criar uma conexão com o banco de dados
 def get_db_connection():
     return psycopg2.connect(
@@ -31,8 +31,8 @@ def execute_query(query, params=None, fetch=False):
     except psycopg2.Error as e:
         st.error(f"Erro no banco de dados: {e}")
         return None
-
-# Criar tabelas e sequências se não existirem
+    
+    
 # Criar tabelas e sequências se não existirem
 def create_tables():
     tipos = [
@@ -56,8 +56,7 @@ def create_tables():
         execute_query(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name} START WITH 1 INCREMENT BY 1;")
 
 # Função para garantir que a sequência existe e está separada por tipo
-def ensure_sequence(sequence_name):
-    execute_query(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name} START WITH 1 INCREMENT BY 1;")
+
 
 # Obter próximo número com lógica independente
 def normalizar_nome(tipo):
@@ -68,33 +67,91 @@ def normalizar_nome(tipo):
     tipo = re.sub(r'\s+', '_', tipo)
     return tipo + "_seq"
 
+def ensure_sequence(sequence_name):
+    """Garante que a sequência existe e está correta."""
+    execute_query(f"""
+        CREATE SEQUENCE IF NOT EXISTS {sequence_name}
+        START WITH 1
+        INCREMENT BY 1
+        CACHE 1;
+    """)
+
 def get_next_number(tipo):
+    """Gera o próximo número sequencial de um documento do tipo informado"""
     sequence_name = normalizar_nome(tipo)
     ensure_sequence(sequence_name)
-    while True:
-        result = execute_query(f"SELECT nextval('{sequence_name}')", fetch=True)
-        if result:
-            count = result[0][0]
+
+    with get_db_connection() as conn:
+        conn.set_session(autocommit=True)  # 🚀 Garante autocommit
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT nextval('{sequence_name}')")  # Obtém próximo número
+            count = cursor.fetchone()[0]
+
+            numero = f"{count:03d}/{datetime.now().year}"  # Formata para 001/2025
+            st.write(f"🔍 Sequência: {sequence_name}, Número Gerado: {numero}")
+
+            # Verifica se esse número já existe
+            cursor.execute("SELECT 1 FROM documentos WHERE numero = %s", (numero,))
+            exists = cursor.fetchone()
+
+            if not exists:
+                return numero  # ✅ Retorna imediatamente!
+
+    st.error("🚨 Nenhum número retornado (primeira tentativa falhou)!")
+    return None
+
+
+def get_next_number(tipo):
+    """Gera o próximo número sequencial para o tipo informado."""
+    sequence_name = normalizar_nome(tipo)
+    ensure_sequence(sequence_name)
+
+    with get_db_connection() as conn:
+        conn.set_session(autocommit=True)  # 🚀 Garante que `nextval()` seja imediato
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT nextval('{sequence_name}')")
+            count = cursor.fetchone()[0]
             numero = f"{count:03d}/{datetime.now().year}"
-            existing = execute_query("SELECT numero FROM documentos WHERE numero = %s", (numero,), fetch=True)
-            if not existing:
-                return numero
+            
+            return numero
+    return None
+
 
 def save_document(tipo, destino, data_emissao):
+    """Salva o documento gerando novo número se houver conflito."""
     sequence_name = normalizar_nome(tipo)
     ensure_sequence(sequence_name)
-    for _ in range(5):
+
+    for tentativa in range(5):
         try:
             numero = get_next_number(tipo)
-            execute_query("""
-                INSERT INTO documentos (tipo, numero, destino, data_emissao)
-                VALUES (%s, %s, %s, %s);
-            """, (tipo, numero, destino, data_emissao))
-            return numero
+            if not numero:
+                st.error("❌ get_next_number() retornou None!")
+                return None
+
+            query = """
+            INSERT INTO documentos (tipo, numero, destino, data_emissao)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (numero) DO UPDATE
+            SET destino = EXCLUDED.destino
+            RETURNING numero;
+            """
+
+            resultado = execute_query(query, (tipo, numero, destino, data_emissao), fetch=True)
+            if resultado:
+                st.success(f"✅ Documento salvo: {resultado[0][0]}")
+                return resultado[0][0]
+
+            st.warning(f"⚠️ Conflito para número {numero}, tentando novamente...")
         except psycopg2.IntegrityError:
+            st.error("🚨 Erro de integridade. Tentando novamente...")
             continue
+
         time.sleep(0.2)
-    raise Exception("Falha ao salvar documento após múltiplas tentativas.")
+
+    st.error("❌ Falha após 5 tentativas.")
+    return None
+
 
 # Inicializa o estado de login
 if "authenticated" not in st.session_state:
@@ -117,7 +174,7 @@ def login():
             st.sidebar.error("Usuário ou senha incorretos!")
 
 def main():
-    create_tables()
+    
     if not st.session_state["authenticated"]:
         login()
     else:
